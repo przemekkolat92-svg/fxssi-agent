@@ -2,7 +2,12 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FXSSI Agent">
+<meta name="theme-color" content="#0f1117">
 <title>FXSSI Agent — 8 ćwiartek</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
@@ -223,6 +228,35 @@ textarea::placeholder{color:var(--muted)}
 .spin-dark{border-color:var(--border2);border-top-color:var(--accent)}
 @keyframes sp{to{transform:rotate(360deg)}}
 .disc{font-size:10px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--border);line-height:1.5}
+
+/* ═══ MOBILE ═══ */
+@media(max-width:768px){
+  .app{padding:10px 10px}
+  .main-layout{grid-template-columns:1fr !important}
+  #tv-chart{height:280px !important}
+  .ta-result-grid{grid-template-columns:1fr 1fr !important}
+  .hdr-s{display:none}
+  .hdr-t{font-size:15px}
+  .go-btn{position:sticky;bottom:10px;z-index:10;box-shadow:0 4px 20px rgba(14,165,233,.4)}
+  .hist-list{max-height:220px}
+  .rtabs{overflow-x:auto;scrollbar-width:none}
+  .rtabs::-webkit-scrollbar{display:none}
+  .rtab{white-space:nowrap;flex-shrink:0}
+  .chat-msgs{max-height:160px}
+  .pair-row .pp{padding:6px 9px;font-size:11px}
+  input[type=text],input[type=number]{font-size:16px !important}
+  textarea{font-size:16px !important}
+}
+@media(max-width:400px){
+  #tv-chart{height:220px !important}
+  .pair-row .pp{padding:5px 7px;font-size:10px}
+  .hdr-icon{width:34px;height:34px;font-size:16px}
+}
+.app{
+  padding-left:max(10px, env(safe-area-inset-left));
+  padding-right:max(10px, env(safe-area-inset-right));
+  padding-bottom:max(10px, env(safe-area-inset-bottom));
+}
 </style>
 </head>
 <body>
@@ -238,6 +272,34 @@ textarea::placeholder{color:var(--muted)}
     <div class="badge">PRO</div>
   </div>
 
+
+  <!-- API KEY BAR -->
+  <div id="apiKeyBar" style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:11px 14px;margin-bottom:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:20px">🔑</span>
+    <div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:2px">Klucz API Claude</div>
+      <div style="font-size:10px;color:var(--muted)">Wpisz raz — zapisuje się lokalnie w przeglądarce</div>
+    </div>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." oninput="saveKey(this.value)"
+      style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:7px 11px;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s">
+    <span id="apiKeyStatus" style="font-size:11px;color:var(--muted);white-space:nowrap">brak klucza</span>
+  </div>
+
+  <!-- API KEY BAR -->
+  <div id="apiBar" style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:10px 14px;margin-bottom:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:18px">🔑</span>
+    <div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:2px">Klucz API Claude</div>
+      <div style="font-size:10px;color:var(--muted)">Wpisz raz — zapisuje się lokalnie w przeglądarce</div>
+    </div>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." oninput="saveApiKey(this.value)"
+      style="flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:7px 10px;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s">
+    <span id="apiKeyStatus" style="font-size:11px;color:var(--muted);white-space:nowrap">brak klucza</span>
+    <a href="https://console.anthropic.com/settings/keys" target="_blank"
+      style="font-size:10px;color:var(--accent);text-decoration:none;padding:4px 9px;border:1px solid rgba(14,165,233,.3);border-radius:6px;white-space:nowrap">
+      Pobierz klucz →
+    </a>
+  </div>
   <!-- PAIR + TF -->
   <div class="top-ctrl">
     <div class="pair-row" id="pairRow">
@@ -260,6 +322,23 @@ textarea::placeholder{color:var(--muted)}
     </div>
   </div>
 
+
+  <!-- API KEY BAR -->
+  <div id="apiKeyBar" style="background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:11px 14px;margin-bottom:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:20px">🔑</span>
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Klucz API Claude</div>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." oninput="saveApiKey(this.value)"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:7px 11px;font-size:12px;font-family:monospace;outline:none;transition:border-color .2s">
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+      <span id="apiKeyStatus" style="font-size:11px;color:var(--muted);white-space:nowrap">brak klucza</span>
+      <a href="https://console.anthropic.com/settings/keys" target="_blank"
+        style="font-size:10px;color:var(--accent);text-decoration:none;padding:3px 9px;border:1px solid rgba(14,165,233,.3);border-radius:6px;white-space:nowrap">
+        Utwórz klucz →
+      </a>
+    </div>
+  </div>
   <div class="main-layout">
 
     <!-- ═══════════ LEWA: WYKRES + SCREENSHOT ═══════════ -->
@@ -420,6 +499,65 @@ textarea::placeholder{color:var(--muted)}
 </div>
 
 <script>
+
+// ── API KEY ──
+function saveKey(val) {
+  val = val.trim();
+  var statusEl = document.getElementById('apiKeyStatus');
+  var inputEl  = document.getElementById('apiKeyInput');
+  if (val) {
+    localStorage.setItem('fxssi_api_key', val);
+    statusEl.textContent = '✅ zapisany';
+    statusEl.style.color = 'var(--green)';
+    inputEl.style.borderColor = 'var(--green)';
+  } else {
+    localStorage.removeItem('fxssi_api_key');
+    statusEl.textContent = 'brak klucza';
+    statusEl.style.color = 'var(--muted)';
+    inputEl.style.borderColor = 'var(--border2)';
+  }
+}
+function getKey() { return localStorage.getItem('fxssi_api_key') || ''; }
+function getHeaders() {
+  var key = getKey();
+  if (!key) throw new Error('Brak klucza API — wpisz klucz w polu u góry strony');
+  return {
+    'Content-Type': 'application/json',
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true'
+  };
+}
+
+
+// ── API KEY ──
+function saveApiKey(val) {
+  val = val.trim();
+  var statusEl = document.getElementById('apiKeyStatus');
+  var inputEl  = document.getElementById('apiKeyInput');
+  if (val.length > 20) {
+    localStorage.setItem('fxssi_api_key', val);
+    statusEl.textContent = '\u2705 zapisany';
+    statusEl.style.color = 'var(--green)';
+    inputEl.style.borderColor = 'var(--green)';
+  } else {
+    localStorage.removeItem('fxssi_api_key');
+    statusEl.textContent = 'brak klucza';
+    statusEl.style.color = 'var(--muted)';
+    inputEl.style.borderColor = 'var(--border2)';
+  }
+}
+function getApiHeaders() {
+  var key = localStorage.getItem('fxssi_api_key') || '';
+  if (!key) throw new Error('Brak klucza API \u2014 wpisz klucz w polu u g\u00f3ry strony');
+  return {
+    'Content-Type': 'application/json',
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true'
+  };
+}
+
 const STORAGE_KEY = 'fxssi_agent_v5';
 let selPair = 'EURUSD', selTVSymbol = 'FX:EURUSD', selTF = 'H1', selTVInterval = '60';
 let chatHist = [], ctx = '', busy = false, histFilter = 'ALL';
@@ -506,7 +644,7 @@ async function analyzeImage() {
   try {
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514', max_tokens: 1000,
         messages: [{ role: 'user', content: [
@@ -634,7 +772,7 @@ async function analyze() {
   try {
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: msgContent }] })
     });
     var data = await resp.json();
@@ -852,7 +990,7 @@ async function sendChat() {
   chatHist.push({ role: 'user', content: msg });
   try {
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: getHeaders(),
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514', max_tokens: 1000,
         system: 'Ekspert FXSSI 8 cwiartek OB+PB + Vision AI. Odpowiadaj po polsku konkretnie. Kontekst: ' + ctx + '. Nie udzielaj porad inwestycyjnych.',
@@ -874,10 +1012,83 @@ function rt(el, n) {
   el.classList.add('on'); document.getElementById('rb-' + n).classList.add('on');
 }
 
+
+// iOS install hint (bez blob, bez SW)
+(function(){
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isStandalone = window.navigator.standalone;
+  if (isIOS && !isStandalone) {
+    setTimeout(function() {
+      var b = document.createElement('div');
+      b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#161b27;border-top:1px solid #232c3d;padding:12px 14px 28px;font-family:Outfit,sans-serif;z-index:9999;display:flex;align-items:center;gap:10px';
+      b.innerHTML = '<div style="font-size:22px">📲</div><div><div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:2px">Dodaj do ekranu głównego</div><div style="font-size:11px;color:#64748b">Safari: Udostępnij ↑ → Dodaj do ekranu głównego</div></div><button onclick="this.parentNode.remove()" style="margin-left:auto;background:none;border:none;color:#64748b;font-size:18px;cursor:pointer">✕</button>';
+      document.body.appendChild(b);
+      setTimeout(function(){ if(b.parentNode) b.remove(); }, 12000);
+    }, 1500);
+  }
+})();
+
+
+// Wczytaj zapisany klucz
+var savedKey = getKey();
+if (savedKey) {
+  document.getElementById('apiKeyInput').value = savedKey;
+  document.getElementById('apiKeyStatus').textContent = '✅ zapisany';
+  document.getElementById('apiKeyStatus').style.color = 'var(--green)';
+  document.getElementById('apiKeyInput').style.borderColor = 'var(--green)';
+}
+
+// ── API KEY ──
+function saveApiKey(val) {
+  val = val.trim();
+  var statusEl = document.getElementById('apiKeyStatus');
+  var inputEl  = document.getElementById('apiKeyInput');
+  if (val && val.startsWith('sk-ant-')) {
+    localStorage.setItem('fxssi_apikey', val);
+    statusEl.textContent = '✅ klucz zapisany';
+    statusEl.style.color = 'var(--green)';
+    inputEl.style.borderColor = 'var(--green)';
+  } else if (val) {
+    statusEl.textContent = '⚠️ nieprawidlowy format';
+    statusEl.style.color = 'var(--amber)';
+    inputEl.style.borderColor = 'var(--amber)';
+  } else {
+    localStorage.removeItem('fxssi_apikey');
+    statusEl.textContent = 'brak klucza';
+    statusEl.style.color = 'var(--muted)';
+    inputEl.style.borderColor = 'var(--border2)';
+  }
+}
+function getApiKey() {
+  return localStorage.getItem('fxssi_apikey') || '';
+}
+function getHeaders() {
+  var key = getApiKey();
+  if (!key) throw new Error('Brak klucza API — wpisz klucz w polu u góry strony');
+  return {
+    'Content-Type': 'application/json',
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true'
+  };
+}
+
+// INIT - wczytaj zapisany klucz
+var _savedKey = localStorage.getItem('fxssi_api_key');
+if (_savedKey) {
+  document.getElementById('apiKeyInput').value = _savedKey;
+  document.getElementById('apiKeyStatus').textContent = '\u2705 zapisany';
+  document.getElementById('apiKeyStatus').style.color = 'var(--green)';
+  document.getElementById('apiKeyInput').style.borderColor = 'var(--green)';
+}
 // INIT
+var _savedKey = getApiKey();
+if (_savedKey) {
+  document.getElementById("apiKeyInput").value = _savedKey;
+  saveApiKey(_savedKey);
+}
 buildChart('FX:EURUSD', '60');
 renderHistory();
 </script>
 </body>
 </html>
-
