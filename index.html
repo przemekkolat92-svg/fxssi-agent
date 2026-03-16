@@ -998,6 +998,90 @@ function renderResult(r) {
     '</div>';
 }
 
+
+// ── WYNIK TRANSAKCJI ──
+var currentResultId = null;
+var currentResultType = null;
+
+function setResultType(type) {
+  currentResultType = type;
+  document.querySelectorAll('.result-btn').forEach(function(b) { b.classList.remove('on'); });
+  var btn = document.getElementById('rb-' + type);
+  if (btn) btn.classList.add('on');
+  var pip = document.getElementById('pipInput');
+  if (pip) pip.style.display = type === 'open' ? 'none' : 'block';
+}
+
+function showResultPanel(id) {
+  currentResultId = id;
+  var arr = loadAll();
+  var e = arr.find(function(x) { return x.id === id; });
+  var panel = document.getElementById('resultEntryPanel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  document.querySelectorAll('.result-btn').forEach(function(b) { b.classList.remove('on'); });
+  var pip = document.getElementById('pipInput');
+  if (pip) { pip.style.display = 'block'; pip.value = ''; }
+  var status = document.getElementById('resultSaveStatus');
+  if (status) status.style.display = 'none';
+  if (e && e.trade_result) {
+    setResultType(e.trade_result.type);
+    if (e.trade_result.pips && pip) pip.value = e.trade_result.pips;
+  }
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function saveTradeResult() {
+  if (!currentResultId || !currentResultType) return;
+  var pip = document.getElementById('pipInput');
+  var pips = pip ? pip.value : '';
+  var tradeResult = {
+    type: currentResultType,
+    pips: pips ? Math.abs(parseInt(pips)) : null,
+    saved_at: new Date().toLocaleString('pl-PL')
+  };
+  var arr = loadAll();
+  var entry = arr.find(function(x) { return x.id === currentResultId; });
+  if (!entry) return;
+  entry.trade_result = tradeResult;
+  saveAll(arr);
+  renderHistory();
+  if (entry.sb_id) {
+    try {
+      var merged = Object.assign({}, entry.result, { trade_result: tradeResult });
+      await fetch(SB_URL + '/rest/v1/analyses?id=eq.' + entry.sb_id, {
+        method: 'PATCH',
+        headers: sbHeaders(),
+        body: JSON.stringify({ result: merged })
+      });
+    } catch(e) {}
+  }
+  var status = document.getElementById('resultSaveStatus');
+  if (status) {
+    status.style.display = 'block';
+    var icon = currentResultType === 'win' ? '✅' : currentResultType === 'loss' ? '❌' : '⏳';
+    var sign = currentResultType === 'win' ? '+' : '-';
+    status.textContent = icon + ' Zapisano' + (pips ? ': ' + sign + Math.abs(parseInt(pips)) + ' pip' : '');
+  }
+  setTimeout(function() {
+    var panel = document.getElementById('resultEntryPanel');
+    if (panel) panel.style.display = 'none';
+  }, 1500);
+}
+
+function getResultTag(e) {
+  var tr = e.trade_result || (e.result && e.result.trade_result);
+  if (!tr) return '';
+  if (tr.type === 'win') {
+    return '<div class="hi-result win">✅ ZYSK' + (tr.pips ? ' +' + tr.pips + ' pip' : '') + '</div>';
+  } else if (tr.type === 'loss') {
+    return '<div class="hi-result loss">❌ STRATA' + (tr.pips ? ' −' + tr.pips + ' pip' : '') + '</div>';
+  } else if (tr.type === 'open') {
+    return '<div class="hi-result open">⏳ OTWARTA</div>';
+  }
+  return '';
+}
+
 // ── Storage ──
 function loadAll() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; } }
 function saveAll(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
