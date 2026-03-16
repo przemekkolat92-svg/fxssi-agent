@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FXSSI Agent — 8 ćwiartek</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;
+  --border:#232c3d;--border2:#2d3a50;
+  --text:#e2e8f0;--muted:#64748b;
+  --accent:#0ea5e9;--purple:#6366f1;
+  --green:#10b981;--red:#ef4444;
+  --orange:#f97316;--amber:#f59e0b;
+}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(14,165,233,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(14,165,233,.03) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:18px 16px}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.hdr-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 0 18px rgba(14,165,233,.2)}
+.hdr-t{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.hdr-s{font-size:10px;color:var(--muted);margin-top:1px}
+.badge{margin-left:auto;background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.25);color:var(--accent);font-size:10px;font-weight:700;padding:3px 10px;border-radius:18px;letter-spacing:.5px;white-space:nowrap}
+
+/* PAIR + TF BAR */
+.top-ctrl{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:13px}
+.pair-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.pp{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace;color:var(--text)}
+.pp:hover{border-color:var(--accent);color:var(--accent)}
+.pp.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pp-input{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:5px 9px;font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);width:68px;outline:none;text-transform:uppercase}
+.pp-input:focus{border-color:var(--accent)}
+.pp-input::placeholder{color:var(--muted)}
+.tf-row{display:flex;gap:5px}
+.tf{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--muted)}
+.tf:hover{border-color:var(--purple);color:var(--purple)}
+.tf.on{background:var(--purple);border-color:var(--purple);color:#fff}
+
+/* MAIN 2-COL: LEFT=charts, RIGHT=form+history */
+.main-layout{display:grid;grid-template-columns:1fr 440px;gap:14px;align-items:start}
+@media(max-width:1000px){.main-layout{grid-template-columns:1fr}}
+
+/* ── LEFT COLUMN ── */
+.left-col{display:flex;flex-direction:column;gap:13px}
+
+/* TradingView chart */
+.chart-panel{background:var(--bg2);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.panel-hdr{padding:9px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.02)}
+.panel-hdr-t{font-size:12px;font-weight:700}
+.panel-hdr-r{margin-left:auto;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+#tv-chart{width:100%;height:468px}
+
+/* Screenshot panel */
+.screenshot-panel{background:var(--bg2);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.drop-zone{margin:13px;border:2px dashed var(--border2);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(14,165,233,.04)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:28px;opacity:.55}
+.drop-label{font-size:13px;font-weight:700}
+.drop-sub{font-size:11px;color:var(--muted)}
+.drop-hint{font-size:10px;color:var(--muted);margin-top:1px}
+.img-preview-wrap{margin:0 13px 13px;position:relative}
+.img-preview{width:100%;max-height:300px;object-fit:contain;border-radius:9px;border:1px solid var(--border);display:block}
+.img-clear{position:absolute;top:7px;right:7px;background:rgba(15,17,23,.85);border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;transition:all .2s}
+.img-clear:hover{color:var(--red);border-color:rgba(239,68,68,.3)}
+.analyze-img-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:calc(100% - 26px);margin:0 13px 13px;background:linear-gradient(135deg,var(--purple),var(--accent));color:#fff;border:none;border-radius:9px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;transition:opacity .2s}
+.analyze-img-btn:hover{opacity:.88}
+.analyze-img-btn:disabled{opacity:.4;cursor:not-allowed}
+.ta-result-panel{margin:0 13px 13px}
+.ta-result-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.ta-card{background:var(--bg3);border-radius:8px;padding:8px 10px;border:1px solid var(--border)}
+.ta-card-l{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.ta-card-v{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.ta-card-sub{font-size:9px;color:var(--muted);margin-top:1px}
+.ta-summary-box{background:var(--bg3);border-radius:8px;padding:9px 11px;font-size:11px;color:var(--muted);line-height:1.7;border:1px solid var(--border)}
+.ta-ts{font-size:9px;color:var(--muted);margin-top:5px;text-align:right}
+
+/* ── RIGHT COLUMN ── */
+.right-col{display:flex;flex-direction:column;gap:11px}
+
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.section-hdr{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.02)}
+.section-hdr-t{font-size:11px;font-weight:700}
+.stag{margin-left:auto;font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.3px}
+.stag-ob{background:rgba(14,165,233,.12);color:var(--accent)}
+.stag-pb{background:rgba(99,102,241,.12);color:var(--purple)}
+.stag-ex{background:rgba(16,185,129,.12);color:var(--green)}
+
+.snap-row{display:flex;gap:8px;padding:9px 11px}
+.sf{flex:1}
+.flbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+input[type=text],input[type=number]{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:6px 9px;font-size:13px;font-family:'JetBrains Mono',monospace;font-weight:600;outline:none;transition:border-color .2s}
+input:focus{border-color:var(--accent)}
+input::placeholder{color:var(--muted);font-weight:400}
+
+/* QUARTERS — 2x2 grid */
+.quarters{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.q{background:var(--bg2);padding:9px 10px;position:relative}
+.q-num{position:absolute;top:4px;right:7px;font-size:17px;font-weight:800;color:var(--border2);line-height:1;pointer-events:none}
+.q-title{font-size:10px;font-weight:700;margin-bottom:1px;line-height:1.2}
+.q-sub{font-size:8px;color:var(--muted);margin-bottom:5px;line-height:1.3}
+.q input{font-size:14px;padding:5px 8px;font-weight:800;background:var(--bg3)}
+.q1 .q-title{color:var(--orange)}.q2 .q-title{color:var(--accent)}
+.q3 .q-title{color:var(--orange)}.q4 .q-title{color:var(--accent)}
+.q5 .q-title{color:var(--green)}.q6 .q-title{color:var(--red)}
+.q7 .q-title{color:var(--red)}.q8 .q-title{color:var(--green)}
+
+/* LIVE SIGNALS */
+.live-wrap{padding:9px 11px}
+.live-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ld-bar-row{display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.ld-bar-label{font-size:9px;width:84px;flex-shrink:0;color:var(--muted)}
+.ld-bar-track{flex:1;height:8px;background:var(--border2);border-radius:3px;overflow:hidden}
+.ld-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.ld-bar-val{font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;width:30px;text-align:right;flex-shrink:0}
+.bg-or{background:linear-gradient(90deg,#f97316,#fb923c)}
+.bg-bl{background:linear-gradient(90deg,#0ea5e9,#38bdf8)}
+.bg-gr{background:linear-gradient(90deg,#10b981,#34d399)}
+.bg-re{background:linear-gradient(90deg,#ef4444,#f87171)}
+.signal-row{display:flex;flex-direction:column;gap:3px;margin-top:7px}
+.sig{font-size:10px;padding:3px 8px;border-radius:5px;font-weight:600;line-height:1.4}
+.sig-bull{background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.15)}
+.sig-bear{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.15)}
+.sig-neu{background:var(--bg3);color:var(--muted);border:1px solid var(--border2)}
+
+/* EXTRAS */
+.extras-body{padding:9px 11px}
+.extras-row{display:flex;gap:7px;margin-bottom:8px}
+.extras-row .sf{flex:1}
+textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:7px 9px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;resize:none;height:46px;line-height:1.5;transition:border-color .2s}
+textarea:focus{border-color:var(--accent)}
+textarea::placeholder{color:var(--muted)}
+
+/* GO BTN */
+.go-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:'Outfit',sans-serif;transition:opacity .2s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(14,165,233,.18)}
+.go-btn:hover{opacity:.9}.go-btn:active{transform:scale(.99)}.go-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+
+/* RESULT */
+.result{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:none}
+.rtabs{display:flex;border-bottom:1px solid var(--border)}
+.rtab{padding:9px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s}
+.rtab:hover{color:var(--text)}.rtab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.rbody{padding:14px;display:none;min-height:120px}.rbody.on{display:block}
+.vcard{background:var(--bg3);border-radius:10px;padding:13px;margin-bottom:10px;position:relative;overflow:hidden}
+.vcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--purple),var(--green))}
+.vdir{font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-bottom:3px}
+.vdir.up{color:var(--green)}.vdir.dn{color:var(--red)}.vdir.sw{color:var(--amber)}
+.vhead{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+.cbar{background:var(--border2);border-radius:3px;height:3px;overflow:hidden}
+.cfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width 1s}
+.clbl{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+.kc{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px}
+.kc-l{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.kc-v{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.col-g{color:var(--green)}.col-r{color:var(--red)}.col-b{color:var(--accent)}.col-p{color:var(--purple)}
+.combo-card{background:var(--bg3);border:1px solid rgba(99,102,241,.2);border-radius:7px;padding:9px 11px;margin-bottom:8px;font-size:11px;line-height:1.6;color:var(--muted)}
+.combo-card strong{color:var(--purple)}
+.conf-card{background:var(--bg3);border-radius:7px;padding:9px 11px;margin-bottom:8px;font-size:11px;line-height:1.6;border:1px solid var(--border)}
+.conf-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:5px;font-weight:700;letter-spacing:.3px}
+.conf-yes{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.conf-no{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.conf-neu{background:var(--border2);color:var(--muted);border:1px solid var(--border)}
+.risk-card{background:var(--bg3);border:1px solid rgba(245,158,11,.15);border-radius:7px;padding:9px 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.risk-card strong{color:var(--amber)}
+.ai-txt{font-size:12px;line-height:1.75;color:var(--text)}
+.ai-txt h3{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin:11px 0 4px}
+.ai-txt h3:first-child{margin-top:0}
+.ai-txt p{margin-bottom:6px;color:var(--muted)}
+.hl-b{background:rgba(14,165,233,.07);border-left:3px solid var(--accent);padding:7px 10px;border-radius:0 7px 7px 0;margin:6px 0;font-size:12px}
+.hl-p{background:rgba(99,102,241,.07);border-left:3px solid var(--purple);padding:7px 10px;border-radius:0 7px 7px 0;margin:6px 0;font-size:12px}
+.hl-g{background:rgba(16,185,129,.07);border-left:3px solid var(--green);padding:7px 10px;border-radius:0 7px 7px 0;margin:6px 0;font-size:12px}
+.chat-msgs{display:flex;flex-direction:column;gap:6px;margin-bottom:9px;max-height:220px;overflow-y:auto}
+.chat-msgs::-webkit-scrollbar{width:3px}.chat-msgs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.msg{padding:8px 11px;border-radius:7px;font-size:11px;line-height:1.65}
+.msg.u{background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.15)}
+.msg.a{background:var(--bg3);border:1px solid var(--border)}
+.msg-r{font-size:9px;font-weight:700;color:var(--muted);margin-bottom:3px;letter-spacing:.5px}
+.cinrow{display:flex;gap:6px}
+.cin{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:7px 10px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;transition:border-color .2s}
+.cin:focus{border-color:var(--accent)}.cin::placeholder{color:var(--muted)}.cin:disabled{opacity:.35}
+.csnd{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;transition:background .2s}
+.csnd:hover{background:#0284c7}.csnd:disabled{background:var(--border2);cursor:not-allowed}
+
+/* HISTORY */
+.hist-panel{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.hist-panel-hdr{padding:9px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.02)}
+.hist-panel-hdr-t{font-size:12px;font-weight:700}
+.hist-count{margin-left:auto;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.hist-pair-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:7px 10px;border-bottom:1px solid var(--border)}
+.hpt{background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;font-family:'JetBrains Mono',monospace;color:var(--muted);transition:all .15s}
+.hpt:hover{border-color:var(--accent);color:var(--accent)}
+.hpt.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.hist-list{max-height:320px;overflow-y:auto;padding:7px}
+.hist-list::-webkit-scrollbar{width:3px}.hist-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.hist-item{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:5px;cursor:pointer;transition:border-color .2s;position:relative}
+.hist-item:hover{border-color:var(--border2)}.hist-item.loaded{border-color:var(--accent)}
+.hi-top{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.hi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.hi-pair{font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.hi-tf{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.hi-dir{font-size:10px;font-weight:800;margin-left:auto;font-family:'JetBrains Mono',monospace}
+.hi-meta{font-size:9px;color:#475569;margin-bottom:2px}
+.hi-headline{font-size:10px;color:var(--muted);line-height:1.4;margin-bottom:3px}
+.hi-tags{display:flex;gap:2px;flex-wrap:wrap;margin-top:3px}
+.hi-tag{font-size:8px;padding:1px 4px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-weight:600;background:var(--bg2);color:var(--muted);border:1px solid var(--border)}
+.hi-del{position:absolute;top:6px;right:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px;border-radius:3px;transition:all .2s;opacity:0}
+.hist-item:hover .hi-del{opacity:1}
+.hi-del:hover{background:rgba(239,68,68,.15);color:var(--red)}
+.hist-empty{padding:18px;text-align:center;color:var(--muted);font-size:11px;line-height:1.7}
+.hist-empty-icon{font-size:22px;margin-bottom:6px;opacity:.35}
+.hist-actions{padding:7px 10px;border-top:1px solid var(--border);display:flex;gap:5px}
+.hact{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:5px 3px;font-size:10px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s;text-align:center}
+.hact:hover{border-color:var(--border);color:var(--text)}
+.hact.danger:hover{border-color:rgba(239,68,68,.3);color:var(--red)}
+
+/* SPINNER */
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block;flex-shrink:0}
+.spin-dark{border-color:var(--border2);border-top-color:var(--accent)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.disc{font-size:10px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--border);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-icon">📊</div>
+    <div>
+      <div class="hdr-t">FXSSI Agent</div>
+      <div class="hdr-s">TradingView Live · Screenshot → Vision AI · 8 ćwiartek OB+PB · Historia · Claude AI</div>
+    </div>
+    <div class="badge">PRO</div>
+  </div>
+
+  <!-- PAIR + TF -->
+  <div class="top-ctrl">
+    <div class="pair-row" id="pairRow">
+      <div class="pp on" onclick="setPair(this,'EURUSD','FX:EURUSD')">EUR/USD</div>
+      <div class="pp" onclick="setPair(this,'GBPUSD','FX:GBPUSD')">GBP/USD</div>
+      <div class="pp" onclick="setPair(this,'USDJPY','FX:USDJPY')">USD/JPY</div>
+      <div class="pp" onclick="setPair(this,'XAUUSD','TVC:GOLD')">XAU/USD</div>
+      <div class="pp" onclick="setPair(this,'GBPJPY','FX:GBPJPY')">GBP/JPY</div>
+      <div class="pp" onclick="setPair(this,'AUDUSD','FX:AUDUSD')">AUD/USD</div>
+      <div class="pp" onclick="setPair(this,'USDCAD','FX:USDCAD')">USD/CAD</div>
+      <div class="pp" onclick="setPair(this,'BTCUSD','BINANCE:BTCUSDT')">BTC/USD</div>
+      <input type="text" class="pp-input" id="customPair" placeholder="INNE" oninput="setCustom(this)">
+    </div>
+    <div class="tf-row">
+      <div class="tf" onclick="setTF(this,'M15','15')">M15</div>
+      <div class="tf" onclick="setTF(this,'M30','30')">M30</div>
+      <div class="tf on" onclick="setTF(this,'H1','60')">H1</div>
+      <div class="tf" onclick="setTF(this,'H4','240')">H4</div>
+      <div class="tf" onclick="setTF(this,'D1','D')">D1</div>
+    </div>
+  </div>
+
+  <div class="main-layout">
+
+    <!-- ═══════════ LEWA: WYKRES + SCREENSHOT ═══════════ -->
+    <div class="left-col">
+
+      <!-- TradingView -->
+      <div class="chart-panel">
+        <div class="panel-hdr">
+          <span>📈</span>
+          <span class="panel-hdr-t">TradingView — live</span>
+          <span class="panel-hdr-r" id="chartLabel">EURUSD · H1</span>
+        </div>
+        <div id="tv-chart"></div>
+      </div>
+
+      <!-- Screenshot -->
+      <div class="screenshot-panel">
+        <div class="panel-hdr">
+          <span>🖼️</span>
+          <span class="panel-hdr-t">Screenshot wykresu → Vision AI</span>
+          <span id="imgBadge" style="margin-left:auto;font-size:10px;color:var(--muted)">brak</span>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="chartFileInput" accept="image/*" onchange="handleFile(this.files[0])">
+          <div class="drop-icon">📷</div>
+          <div class="drop-label">Wrzuć screenshot wykresu</div>
+          <div class="drop-sub">PNG / JPG z TradingView, MT4 lub dowolnego brokera</div>
+          <div class="drop-hint">Przeciągnij · Kliknij · Ctrl+V ze schowka</div>
+        </div>
+
+        <div id="imgPreviewWrap" style="display:none">
+          <div class="img-preview-wrap">
+            <img id="imgPreview" class="img-preview" src="" alt="wykres">
+            <button class="img-clear" onclick="clearImage()">✕ usuń</button>
+          </div>
+          <button class="analyze-img-btn" id="analyzeImgBtn" onclick="analyzeImage()">
+            🔍 Analizuj wykres przez Claude Vision
+          </button>
+        </div>
+
+        <div class="ta-result-panel" id="taResultPanel" style="display:none"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ PRAWA: FORMULARZ + ANALIZA + HISTORIA ═══════════ -->
+    <div class="right-col">
+
+      <!-- Cena + snapshot -->
+      <div class="section">
+        <div class="section-hdr"><span>💰</span><span class="section-hdr-t">Dane z MT4 + FXSSI snapshot</span></div>
+        <div class="snap-row">
+          <div class="sf"><div class="flbl">Cena (MT4)</div><input type="text" id="price" placeholder="np. 1.08180" style="font-size:14px;font-weight:800"></div>
+          <div class="sf"><div class="flbl">Snapshot FXSSI</div><input type="text" id="snap" placeholder="23:00 13.03.2026" style="font-size:12px"></div>
+        </div>
+      </div>
+
+      <!-- Order Book -->
+      <div class="section">
+        <div class="section-hdr"><span>📖</span><span class="section-hdr-t">Order Book</span><span class="stag stag-ob">ćw. 1–4</span></div>
+        <div class="quarters">
+          <div class="q q1"><div class="q-num">1</div><div class="q-title">Sell Limit</div><div class="q-sub">TP Buy · ▲ powyżej</div><input type="number" id="q1" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+          <div class="q q2"><div class="q-num">2</div><div class="q-title">Buy Stop</div><div class="q-sub">SL Sell · ▲ powyżej</div><input type="number" id="q2" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+          <div class="q q3"><div class="q-num">3</div><div class="q-title">Sell Stop</div><div class="q-sub">SL Buy · ▼ poniżej</div><input type="number" id="q3" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+          <div class="q q4"><div class="q-num">4</div><div class="q-title">Buy Limit</div><div class="q-sub">TP Sell · ▼ poniżej</div><input type="number" id="q4" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+        </div>
+      </div>
+
+      <!-- Position Book -->
+      <div class="section">
+        <div class="section-hdr"><span>📍</span><span class="section-hdr-t">Position Book</span><span class="stag stag-pb">ćw. 5–8</span></div>
+        <div class="quarters">
+          <div class="q q5"><div class="q-num">5</div><div class="q-title">Profit Sellers</div><div class="q-sub">Sell zysk · ▲</div><input type="number" id="q5" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+          <div class="q q6"><div class="q-num">6</div><div class="q-title">Loss Buyers</div><div class="q-sub">Buy strata · ▲</div><input type="number" id="q6" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+          <div class="q q7"><div class="q-num">7</div><div class="q-title">Loss Sellers</div><div class="q-sub">Sell strata · ▼</div><input type="number" id="q7" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+          <div class="q q8"><div class="q-num">8</div><div class="q-title">Profit Buyers</div><div class="q-sub">Buy zysk · ▼</div><input type="number" id="q8" placeholder="%" min="0" max="100" oninput="refreshLive()"></div>
+        </div>
+      </div>
+
+      <!-- Live signals -->
+      <div class="section">
+        <div class="section-hdr"><span>📡</span><span class="section-hdr-t">Sygnały na żywo</span></div>
+        <div class="live-wrap">
+          <div class="live-title">Order Book</div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#f97316">▲ Sell Limit (1)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-or" id="bar1" style="width:0%"></div></div><div class="ld-bar-val" id="bv1" style="color:#f97316">—</div></div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#0ea5e9">▲ Buy Stop (2)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-bl" id="bar2" style="width:0%"></div></div><div class="ld-bar-val" id="bv2" style="color:#0ea5e9">—</div></div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#f97316">▼ Sell Stop (3)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-or" id="bar3" style="width:0%"></div></div><div class="ld-bar-val" id="bv3" style="color:#f97316">—</div></div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#0ea5e9">▼ Buy Limit (4)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-bl" id="bar4" style="width:0%"></div></div><div class="ld-bar-val" id="bv4" style="color:#0ea5e9">—</div></div>
+          <div class="live-title" style="margin-top:7px">Position Book</div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#10b981">▲ Profit Sell (5)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-gr" id="bar5" style="width:0%"></div></div><div class="ld-bar-val" id="bv5" style="color:#10b981">—</div></div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#ef4444">▲ Loss Buy (6)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-re" id="bar6" style="width:0%"></div></div><div class="ld-bar-val" id="bv6" style="color:#ef4444">—</div></div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#ef4444">▼ Loss Sell (7)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-re" id="bar7" style="width:0%"></div></div><div class="ld-bar-val" id="bv7" style="color:#ef4444">—</div></div>
+          <div class="ld-bar-row"><div class="ld-bar-label" style="color:#10b981">▼ Profit Buy (8)</div><div class="ld-bar-track"><div class="ld-bar-fill bg-gr" id="bar8" style="width:0%"></div></div><div class="ld-bar-val" id="bv8" style="color:#10b981">—</div></div>
+          <div class="signal-row" id="signalRow"><span class="sig sig-neu">Wpisz dane z FXSSI aby zobaczyć sygnały</span></div>
+        </div>
+      </div>
+
+      <!-- Myfxbook + notes -->
+      <div class="section">
+        <div class="section-hdr"><span>➕</span><span class="section-hdr-t">Myfxbook + Uwagi</span><span class="stag stag-ex">opcjonalne</span></div>
+        <div class="extras-body">
+          <div class="extras-row">
+            <div class="sf"><div class="flbl" style="color:#10b981">MFB Long %</div><input type="number" id="mfbL" placeholder="61"></div>
+            <div class="sf"><div class="flbl" style="color:#ef4444">MFB Short %</div><input type="number" id="mfbS" placeholder="39"></div>
+          </div>
+          <div><div class="flbl" style="margin-bottom:3px">📝 Uwagi</div><textarea id="notes" placeholder="np. jutro FOMC, uptrend D1, pin bar H4..."></textarea></div>
+        </div>
+      </div>
+
+      <!-- ANALYZE BTN -->
+      <button class="go-btn" id="goBtn" onclick="analyze()">🤖 Analizuj wszystko z Claude AI</button>
+
+      <!-- RESULT -->
+      <div class="result" id="result">
+        <div class="rtabs">
+          <div class="rtab on" onclick="rt(this,'ov')">⚡ Werdykt</div>
+          <div class="rtab" onclick="rt(this,'ai')">🧠 FXSSI</div>
+          <div class="rtab" onclick="rt(this,'chart')">📊 Wykres</div>
+          <div class="rtab" onclick="rt(this,'ch')">💬 Chat</div>
+        </div>
+        <div class="rbody on" id="rb-ov"></div>
+        <div class="rbody" id="rb-ai"></div>
+        <div class="rbody" id="rb-chart"></div>
+        <div class="rbody" id="rb-ch">
+          <div class="chat-msgs" id="chatMsgs">
+            <div class="msg a"><div class="msg-r">AGENT AI</div>Analiza gotowa! Zapytaj o wykres, 8 ćwiartek, squeeze, confluencję...</div>
+          </div>
+          <div class="cinrow">
+            <input class="cin" id="cin" placeholder="Zapytaj o setup..." disabled>
+            <button class="csnd" id="csnd" onclick="sendChat()" disabled>Wyślij</button>
+          </div>
+        </div>
+        <div class="disc">⚠️ Wyłącznie edukacyjnie. Nie stanowi porady inwestycyjnej.</div>
+      </div>
+
+      <!-- HISTORIA -->
+      <div class="hist-panel">
+        <div class="hist-panel-hdr">
+          <span>🗂️</span><span class="hist-panel-hdr-t">Historia analiz</span>
+          <span class="hist-count" id="histCount">0 analiz</span>
+        </div>
+        <div class="hist-pair-tabs" id="histPairTabs">
+          <div class="hpt on" onclick="filterHist(this,'ALL')">Wszystkie</div>
+        </div>
+        <div class="hist-list" id="histList">
+          <div class="hist-empty"><div class="hist-empty-icon">📋</div>Analizy pojawią się tutaj.<br>Zapisywane lokalnie — nie znikają po zamknięciu.</div>
+        </div>
+        <div class="hist-actions">
+          <div class="hact" onclick="exportJSON()">⬇️ JSON</div>
+          <div class="hact" onclick="exportCSV()">⬇️ CSV</div>
+          <div class="hact danger" onclick="clearAll()">🗑️ Wyczyść</div>
+        </div>
+      </div>
+
+    </div><!-- end right-col -->
+  </div><!-- end main-layout -->
+</div>
+
+<script>
+const STORAGE_KEY = 'fxssi_agent_v5';
+let selPair = 'EURUSD', selTVSymbol = 'FX:EURUSD', selTF = 'H1', selTVInterval = '60';
+let chatHist = [], ctx = '', busy = false, histFilter = 'ALL';
+let chartImageB64 = null, chartImageType = 'image/png';
+let taFromImage = null;
+
+// ── TradingView ──
+function buildChart(symbol, interval) {
+  var c = document.getElementById('tv-chart');
+  c.innerHTML = '';
+  var s = document.createElement('script');
+  s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.async = true;
+  s.innerHTML = JSON.stringify({
+    autosize: true, symbol: symbol, interval: interval,
+    timezone: 'Europe/Warsaw', theme: 'dark', style: '1', locale: 'pl',
+    allow_symbol_change: false, calendar: false,
+    support_host: 'https://www.tradingview.com', height: 468
+  });
+  var w = document.createElement('div');
+  w.className = 'tradingview-widget-container';
+  w.style.cssText = 'height:468px;width:100%';
+  var i = document.createElement('div');
+  i.className = 'tradingview-widget-container__widget';
+  w.appendChild(i); w.appendChild(s); c.appendChild(w);
+}
+
+// ── Screenshot drag/drop/paste ──
+var dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', function() { dz.classList.remove('over'); });
+dz.addEventListener('drop', function(e) {
+  e.preventDefault(); dz.classList.remove('over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+document.addEventListener('paste', function(e) {
+  var items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') === 0) { handleFile(items[i].getAsFile()); break; }
+  }
+});
+
+function handleFile(file) {
+  if (!file || file.type.indexOf('image') !== 0) return;
+  chartImageType = file.type;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    chartImageB64 = dataUrl.split(',')[1];
+    document.getElementById('imgPreview').src = dataUrl;
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('imgPreviewWrap').style.display = 'block';
+    document.getElementById('imgBadge').textContent = '\u2705 wczytane';
+    document.getElementById('imgBadge').style.color = 'var(--green)';
+    taFromImage = null;
+    document.getElementById('taResultPanel').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  chartImageB64 = null; taFromImage = null;
+  document.getElementById('imgPreview').src = '';
+  document.getElementById('dropZone').style.display = 'flex';
+  document.getElementById('imgPreviewWrap').style.display = 'none';
+  document.getElementById('taResultPanel').style.display = 'none';
+  document.getElementById('imgBadge').textContent = 'brak';
+  document.getElementById('imgBadge').style.color = 'var(--muted)';
+  document.getElementById('chartFileInput').value = '';
+}
+
+// ── Vision analyze ──
+async function analyzeImage() {
+  if (!chartImageB64) return;
+  var btn = document.getElementById('analyzeImgBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div> Analizuję wykres...';
+  document.getElementById('taResultPanel').style.display = 'block';
+  document.getElementById('taResultPanel').innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:11px"><div class="spin spin-dark" style="width:18px;height:18px;margin:0 auto 8px;display:block"></div>Claude odczytuje wykres...</div>';
+
+  var visionPrompt = 'Jestes ekspertem analizy technicznej Forex. Para: ' + selPair + ' TF: ' + selTF + '. Przeanalizuj ten wykres. TYLKO JSON: {"trend":"UPTREND|DOWNTREND|SIDEWAYS","trend_strength":"STRONG|MODERATE|WEAK","trend_description":"opis trendu","rsi_value":null,"rsi_signal":"OVERBOUGHT|OVERSOLD|NEUTRAL","rsi_description":"opis RSI","macd_signal":"BULLISH|BEARISH|NEUTRAL","macd_description":"opis MACD","ma_description":"opis MA","last_candle_pattern":"formacja lub null","last_candle_description":"opis swiey","support_levels":["poziom"],"resistance_levels":["poziom"],"overall_bias":"BULLISH|BEARISH|NEUTRAL","chart_summary":"3-4 zdania opisu wykresu","confidence_of_read":"HIGH|MEDIUM|LOW"}';
+
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: chartImageType, data: chartImageB64 } },
+          { type: 'text', text: visionPrompt }
+        ]}]
+      })
+    });
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    var txt = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+    var m = txt.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Brak JSON');
+    taFromImage = JSON.parse(m[0]);
+    renderImageTA(taFromImage);
+    document.getElementById('imgBadge').textContent = '\u2705 przeanalizowany';
+  } catch(e) {
+    document.getElementById('taResultPanel').innerHTML = '<div style="padding:12px;color:#f87171;font-size:11px">B\u0142\u0105d: ' + e.message + '</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '\uD83D\uDD0D Analizuj wykres przez Claude Vision';
+}
+
+function renderImageTA(d) {
+  if (!d) return;
+  var trendC = d.trend === 'UPTREND' ? 'var(--green)' : d.trend === 'DOWNTREND' ? 'var(--red)' : 'var(--amber)';
+  var biasC  = d.overall_bias === 'BULLISH' ? 'var(--green)' : d.overall_bias === 'BEARISH' ? 'var(--red)' : 'var(--amber)';
+  var rsiC   = d.rsi_signal === 'OVERBOUGHT' ? 'var(--red)' : d.rsi_signal === 'OVERSOLD' ? 'var(--green)' : 'var(--amber)';
+  var macdC  = d.macd_signal === 'BULLISH' ? 'var(--green)' : d.macd_signal === 'BEARISH' ? 'var(--red)' : 'var(--amber)';
+  var confC  = d.confidence_of_read === 'HIGH' ? '#10b981' : d.confidence_of_read === 'MEDIUM' ? '#f59e0b' : '#ef4444';
+  var tArrow = d.trend === 'UPTREND' ? '\u25b2' : d.trend === 'DOWNTREND' ? '\u25bc' : '\u2194';
+  var candleHtml = d.last_candle_pattern
+    ? '<div class="ta-card" style="grid-column:span 2;margin-bottom:7px"><div class="ta-card-l">Formacja \u015bwiecowa</div><div class="ta-card-v" style="font-size:12px;color:var(--purple)">' + d.last_candle_pattern + '</div><div class="ta-card-sub">' + (d.last_candle_description || '').slice(0, 80) + '</div></div>'
+    : '';
+  document.getElementById('taResultPanel').innerHTML =
+    '<div class="ta-result-grid">' +
+      '<div class="ta-card"><div class="ta-card-l">Trend</div><div class="ta-card-v" style="color:' + trendC + '">' + tArrow + ' ' + d.trend + '</div><div class="ta-card-sub">' + (d.trend_strength || '') + '</div></div>' +
+      '<div class="ta-card"><div class="ta-card-l">Bias</div><div class="ta-card-v" style="color:' + biasC + '">' + (d.overall_bias || '\u2014') + '</div><div class="ta-card-sub">sentyment</div></div>' +
+      '<div class="ta-card"><div class="ta-card-l">RSI</div><div class="ta-card-v" style="color:' + rsiC + '">' + (d.rsi_value !== null && d.rsi_value !== undefined ? d.rsi_value : '\u2014') + '</div><div class="ta-card-sub">' + (d.rsi_signal || 'niewidoczny') + '</div></div>' +
+      '<div class="ta-card"><div class="ta-card-l">MACD</div><div class="ta-card-v" style="font-size:11px;color:' + macdC + '">' + (d.macd_signal || '\u2014') + '</div><div class="ta-card-sub">' + (d.macd_description ? d.macd_description.slice(0, 28) + '...' : 'niewidoczny') + '</div></div>' +
+      candleHtml +
+    '</div>' +
+    '<div class="ta-summary-box">' + (d.chart_summary || '') + '</div>' +
+    '<div class="ta-ts">Pewno\u015b\u0107 odczytu: <span style="color:' + confC + ';font-weight:700">' + (d.confidence_of_read || '') + '</span></div>';
+}
+
+// ── Pair / TF ──
+function setPair(el, pair, tvSymbol) {
+  document.querySelectorAll('.pp').forEach(function(x) { x.classList.remove('on'); });
+  el.classList.add('on'); selPair = pair; selTVSymbol = tvSymbol;
+  document.getElementById('customPair').value = '';
+  document.getElementById('chartLabel').textContent = pair + ' \u00b7 ' + selTF;
+  buildChart(tvSymbol, selTVInterval);
+}
+function setCustom(inp) {
+  var v = inp.value.trim().toUpperCase();
+  if (v) { document.querySelectorAll('.pp').forEach(function(x) { x.classList.remove('on'); }); selPair = v; selTVSymbol = 'FX:' + v; buildChart('FX:' + v, selTVInterval); }
+}
+function setTF(el, tf, tvInterval) {
+  document.querySelectorAll('.tf').forEach(function(x) { x.classList.remove('on'); });
+  el.classList.add('on'); selTF = tf; selTVInterval = tvInterval;
+  document.getElementById('chartLabel').textContent = selPair + ' \u00b7 ' + tf;
+  buildChart(selTVSymbol, tvInterval);
+}
+function fv(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+// ── Live preview ──
+function refreshLive() {
+  for (var i = 1; i <= 8; i++) {
+    var v = fv('q' + i);
+    document.getElementById('bar' + i).style.width = Math.min(100, v * 2.2) + '%';
+    document.getElementById('bv' + i).textContent = v ? v + '%' : '\u2014';
+  }
+  var q1=fv('q1'),q2=fv('q2'),q3=fv('q3'),q4=fv('q4'),q5=fv('q5'),q6=fv('q6'),q7=fv('q7'),q8=fv('q8');
+  var sigs = [];
+  if (q3 > 15) sigs.push({ t: '\u2b07 Q3=' + q3 + '% \u2014 SL kupuj\u0105cych poni\u017cej \u2192 stop hunt D\u00d3\u0141', c: 'bear' });
+  if (q2 > 12) sigs.push({ t: '\u2b06 Q2=' + q2 + '% \u2014 SL sprzedaj\u0105cych powy\u017cej \u2192 stop hunt G\u00d3RA', c: 'bull' });
+  if (q4 > 20) sigs.push({ t: 'Q4=' + q4 + '% \u2014 Buy Limit poni\u017cej \u2192 wsparcie zlece\u0144', c: 'bull' });
+  if (q1 > 25) sigs.push({ t: 'Q1=' + q1 + '% \u2014 Sell Limit powy\u017cej \u2192 op\u00f3r zlece\u0144', c: 'bear' });
+  if (q6 > 20) sigs.push({ t: 'Q6=' + q6 + '% \u2014 Loss Buyers powy\u017cej \u2192 presja sprzeda\u017cy', c: 'bear' });
+  if (q7 > 20) sigs.push({ t: 'Q7=' + q7 + '% \u2014 Loss Sellers poni\u017cej \u2192 short squeeze', c: 'bull' });
+  if (q8 > 20) sigs.push({ t: 'Q8=' + q8 + '% \u2014 Profit Buyers poni\u017cej \u2192 stabilna baza', c: 'bull' });
+  if (q3 > 15 && q6 > 20) sigs.push({ t: '\u26a0\ufe0f PU\u0141APKA BYCZK\u00d3W: Q3+Q6 \u2192 presja D\u00d3\u0141', c: 'bear' });
+  if (q2 > 12 && q7 > 15) sigs.push({ t: '\u26a0\ufe0f PU\u0141APKA NIED\u0179WIEDZI: Q2+Q7 \u2192 presja G\u00d3RA', c: 'bull' });
+  var row = document.getElementById('signalRow');
+  row.innerHTML = sigs.length
+    ? sigs.map(function(s) { return '<span class="sig sig-' + s.c + '">' + s.t + '</span>'; }).join('')
+    : '<span class="sig sig-neu">Wpisz dane z FXSSI aby zobaczy\u0107 sygna\u0142y</span>';
+}
+
+// ── Main analyze ──
+async function analyze() {
+  if (busy) return;
+  busy = true;
+  var btn = document.getElementById('goBtn');
+  btn.disabled = true; btn.innerHTML = '<div class="spin"></div> Analizuj\u0119...';
+
+  var d = {
+    pair: selPair, tf: selTF,
+    price: document.getElementById('price').value || 'brak',
+    snap: document.getElementById('snap').value || 'brak',
+    q1: fv('q1'), q2: fv('q2'), q3: fv('q3'), q4: fv('q4'),
+    q5: fv('q5'), q6: fv('q6'), q7: fv('q7'), q8: fv('q8'),
+    mfbL: document.getElementById('mfbL').value || 'brak',
+    mfbS: document.getElementById('mfbS').value || 'brak',
+    notes: document.getElementById('notes').value || 'brak'
+  };
+
+  var chartSection = taFromImage
+    ? 'DANE Z WYKRESU (Vision AI): Trend=' + taFromImage.trend + ' (' + taFromImage.trend_strength + '), RSI=' + (taFromImage.rsi_value || 'niewidoczny') + ' ' + (taFromImage.rsi_signal || '') + ', MACD=' + (taFromImage.macd_signal || 'niewidoczny') + ', Formacja=' + (taFromImage.last_candle_pattern || 'brak') + ', Bias=' + taFromImage.overall_bias + '. ' + taFromImage.chart_summary
+    : 'DANE Z WYKRESU: brak screenshota.';
+
+  var prompt = 'Jestes ekspertem FXSSI OB+PB i analizy technicznej. Odpowiadaj po polsku.\n\nPara:' + d.pair + ' TF:' + d.tf + ' Cena:' + d.price + ' Snap:' + d.snap + '\n\nORDER BOOK:\nQ1 Sell Limit/TP Buy: ' + d.q1 + '%\nQ2 Buy Stop/SL Sell: ' + d.q2 + '%\nQ3 Sell Stop/SL Buy: ' + d.q3 + '%\nQ4 Buy Limit/TP Sell: ' + d.q4 + '%\n\nPOSITION BOOK:\nQ5 Profit Sellers: ' + d.q5 + '%\nQ6 Loss Buyers: ' + d.q6 + '%\nQ7 Loss Sellers: ' + d.q7 + '%\nQ8 Profit Buyers: ' + d.q8 + '%\n\nMyfxbook: Long ' + d.mfbL + '% Short ' + d.mfbS + '%\nUwagi: ' + d.notes + '\n\n' + chartSection + '\n\nZASADY: Q3=stop hunt dol, Q2=stop hunt gora, Q4=wsparcie, Q1=opor, Q6=presja sprzedazy, Q7=short squeeze, Q8=baza, Q3+Q6=pulapka byczkow, Q2+Q7=pulapka niedzwiedzi.\n\nTYLKO JSON: {"direction":"LONG|SHORT|NO TRADE","strength":"STRONG|MODERATE|WEAK","confidence":0-100,"headline":"1 zdanie","entry":"wejscie","sl":"SL","tp1":"TP1","tp2":"TP2","rr":"R:R","ob_read":"Q1-Q4 2-3 zdania","pb_read":"Q5-Q8 2-3 zdania","chart_read":"interpretacja wykresu 2-3 zdania","confluence":"POTWIERDZENIE|SPRZECZNOSC|NEUTRALNY","confluence_explanation":"wyjasnienie 2 zdania","key_combo":"kluczowa kombinacja","narrative":"5-6 zdan","key_risk":"ryzyko"}';
+
+  var resultDiv = document.getElementById('result');
+  resultDiv.style.display = 'block';
+  document.getElementById('rb-ov').innerHTML = '<div style="padding:30px;text-align:center;color:#64748b"><div class="spin spin-dark" style="width:22px;height:22px;border-width:3px;margin:0 auto 10px;display:block"></div>Claude AI analizuje...</div>';
+
+  var msgContent = [];
+  if (chartImageB64 && !taFromImage) {
+    msgContent.push({ type: 'image', source: { type: 'base64', media_type: chartImageType, data: chartImageB64 } });
+  }
+  msgContent.push({ type: 'text', text: prompt });
+
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: msgContent }] })
+    });
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    var txt = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+    var m = txt.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Brak JSON');
+    var r = JSON.parse(m[0]);
+    ctx = JSON.stringify({ data: d, taFromImage: taFromImage, result: r });
+    chatHist = [
+      { role: 'user', content: 'Dane: ' + JSON.stringify(d) + ' TA: ' + JSON.stringify(taFromImage) + ' Analiza: ' + JSON.stringify(r) },
+      { role: 'assistant', content: 'Gotowe. ' + r.direction + ' (' + r.confidence + '%). Pytaj!' }
+    ];
+    saveEntry(d, r);
+    renderResult(r);
+    document.getElementById('cin').disabled = false;
+    document.getElementById('csnd').disabled = false;
+    resultDiv.scrollIntoView({ behavior: 'smooth' });
+  } catch(e) {
+    document.getElementById('rb-ov').innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px"><strong>B\u0142\u0105d:</strong> ' + e.message + '</div>';
+  }
+  busy = false; btn.disabled = false; btn.innerHTML = '\uD83E\uDD16 Analizuj wszystko z Claude AI';
+}
+
+// ── Render result ──
+function renderResult(r) {
+  var dc = r.direction === 'LONG' ? 'up' : r.direction === 'SHORT' ? 'dn' : 'sw';
+  var em = r.direction === 'LONG' ? '\u25b2 ' : r.direction === 'SHORT' ? '\u25bc ' : '\u2194 ';
+  var confClass = r.confluence === 'POTWIERDZENIE' ? 'conf-yes' : r.confluence === 'SPRZECZNOSC' ? 'conf-no' : 'conf-neu';
+  var confIcon  = r.confluence === 'POTWIERDZENIE' ? '\u2713' : r.confluence === 'SPRZECZNOSC' ? '\u2715' : '~';
+
+  document.getElementById('rb-ov').innerHTML =
+    '<div class="vcard">' +
+      '<div class="vdir ' + dc + '">' + em + r.direction + ' <span style="font-size:12px;opacity:.6;font-weight:600">' + r.strength + '</span></div>' +
+      '<div class="vhead">' + r.headline + '</div>' +
+      '<div class="cbar"><div class="cfill" style="width:' + r.confidence + '%"></div></div>' +
+      '<div class="clbl"><span>Pewno\u015b\u0107</span><span>' + r.confidence + '%</span></div>' +
+    '</div>' +
+    '<div class="kgrid">' +
+      '<div class="kc"><div class="kc-l">\uD83C\uDFAF Wej\u015bcie</div><div class="kc-v col-b" style="font-size:11px;line-height:1.4;margin-top:2px">' + r.entry + '</div></div>' +
+      '<div class="kc"><div class="kc-l">\uD83D\uDD34 Stop Loss</div><div class="kc-v col-r">' + r.sl + '</div></div>' +
+      '<div class="kc"><div class="kc-l">\u2705 TP1</div><div class="kc-v col-g">' + r.tp1 + '</div></div>' +
+      '<div class="kc"><div class="kc-l">\u2705 TP2</div><div class="kc-v col-g">' + r.tp2 + '</div></div>' +
+    '</div>' +
+    '<div class="kc" style="margin-bottom:9px"><div class="kc-l">R:R</div><div class="kc-v col-p">' + r.rr + '</div></div>' +
+    '<div class="conf-card">\uD83D\uDCCA Confluencja wykres + FXSSI: <span class="conf-badge ' + confClass + '">' + confIcon + ' ' + r.confluence + '</span>' +
+      '<div style="margin-top:5px;color:var(--muted)">' + (r.confluence_explanation || '') + '</div>' +
+    '</div>' +
+    '<div class="combo-card">\uD83D\uDD11 <strong>Kluczowa kombinacja:</strong><br>' + r.key_combo + '</div>' +
+    '<div class="risk-card">\u26a0\ufe0f <strong>Ryzyko:</strong> ' + r.key_risk + '</div>';
+
+  document.getElementById('rb-ai').innerHTML =
+    '<div class="ai-txt">' +
+      '<h3>\uD83E\uDDE0 Narracja</h3><p>' + r.narrative + '</p>' +
+      '<h3>\uD83D\uDCD6 Order Book Q1\u20134</h3><div class="hl-b">' + r.ob_read + '</div>' +
+      '<h3>\uD83D\uDCCD Position Book Q5\u20138</h3><div class="hl-p">' + r.pb_read + '</div>' +
+    '</div>';
+
+  document.getElementById('rb-chart').innerHTML =
+    '<div class="ai-txt">' +
+      '<h3>\uD83D\uDCCA Odczyt wykresu (Vision AI)</h3>' +
+      '<div class="hl-g">' + (r.chart_read || 'Brak screenshota.') + '</div>' +
+      '<h3>\uD83D\uDD17 Confluencja TA + FXSSI</h3>' +
+      '<p><span class="conf-badge ' + confClass + '">' + confIcon + ' ' + r.confluence + '</span></p>' +
+      '<p style="margin-top:6px;color:var(--muted)">' + (r.confluence_explanation || '') + '</p>' +
+    '</div>';
+}
+
+// ── Storage ──
+function loadAll() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; } }
+function saveAll(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+function saveEntry(data, result) {
+  var arr = loadAll();
+  arr.unshift({
+    id: Date.now(), ts: new Date().toLocaleString('pl-PL'),
+    pair: data.pair, tf: data.tf, price: data.price, snap: data.snap,
+    qs: [data.q1, data.q2, data.q3, data.q4, data.q5, data.q6, data.q7, data.q8],
+    mfbL: data.mfbL, mfbS: data.mfbS, notes: data.notes, ta: taFromImage,
+    result: {
+      direction: result.direction, strength: result.strength, confidence: result.confidence,
+      headline: result.headline, entry: result.entry, sl: result.sl,
+      tp1: result.tp1, tp2: result.tp2, rr: result.rr,
+      ob_read: result.ob_read, pb_read: result.pb_read,
+      chart_read: result.chart_read, confluence: result.confluence,
+      confluence_explanation: result.confluence_explanation,
+      key_combo: result.key_combo, narrative: result.narrative, key_risk: result.key_risk
+    }
+  });
+  if (arr.length > 500) arr.splice(500);
+  saveAll(arr); renderHistory();
+}
+
+function getDirColor(d) { return d === 'LONG' ? '#10b981' : d === 'SHORT' ? '#ef4444' : '#f59e0b'; }
+
+function renderHistory() {
+  var arr = loadAll();
+  document.getElementById('histCount').textContent = arr.length + ' analiz';
+  var pairs = [];
+  arr.forEach(function(a) { if (pairs.indexOf(a.pair) === -1) pairs.push(a.pair); });
+  var tabsEl = document.getElementById('histPairTabs');
+  var th = '<div class="hpt ' + (histFilter === 'ALL' ? 'on' : '') + '" onclick="filterHist(this,\'ALL\')">Wszystkie</div>';
+  pairs.forEach(function(p) {
+    var n = arr.filter(function(a) { return a.pair === p; }).length;
+    th += '<div class="hpt ' + (histFilter === p ? 'on' : '') + '" onclick="filterHist(this,\'' + p + '\')">' + p + '<span style="opacity:.5;font-size:8px;margin-left:2px">' + n + '</span></div>';
+  });
+  tabsEl.innerHTML = th;
+
+  var filtered = histFilter === 'ALL' ? arr : arr.filter(function(a) { return a.pair === histFilter; });
+  var listEl = document.getElementById('histList');
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="hist-empty"><div class="hist-empty-icon">\uD83D\uDCCB</div>Brak analiz' + (histFilter !== 'ALL' ? ' dla ' + histFilter : '') + '.</div>';
+    return;
+  }
+  var html = '';
+  filtered.forEach(function(e) {
+    var r = e.result;
+    var dc = getDirColor(r.direction);
+    var em = r.direction === 'LONG' ? '\u25b2' : r.direction === 'SHORT' ? '\u25bc' : '\u2194';
+    var qs = (e.qs || []).map(function(q, i) { return '<span class="hi-tag">Q' + (i+1) + ':' + q + '%</span>'; }).join('');
+    var taTag = e.ta ? '<span class="hi-tag" style="color:var(--accent);border-color:rgba(14,165,233,.2)">\uD83D\uDC41 Vision</span>' : '';
+    var confHtml = '';
+    if (r.confluence) {
+      var cStyle = r.confluence === 'POTWIERDZENIE' ? 'color:var(--green);border-color:rgba(16,185,129,.25)' : r.confluence === 'SPRZECZNOSC' ? 'color:var(--red);border-color:rgba(239,68,68,.25)' : '';
+      var cIcon  = r.confluence === 'POTWIERDZENIE' ? '\u2713' : r.confluence === 'SPRZECZNOSC' ? '\u2715' : '~';
+      confHtml = '<span class="hi-tag" style="' + cStyle + '">' + cIcon + ' ' + r.confluence + '</span>';
+    }
+    html += '<div class="hist-item" id="hi-' + e.id + '" onclick="loadEntry(' + e.id + ')">' +
+      '<button class="hi-del" onclick="event.stopPropagation();delEntry(' + e.id + ')">\u2715</button>' +
+      '<div class="hi-top"><div class="hi-dot" style="background:' + dc + '"></div><span class="hi-pair">' + e.pair + '</span><span class="hi-tf">' + e.tf + '</span><span class="hi-dir" style="color:' + dc + '">' + em + ' ' + r.direction + '</span></div>' +
+      '<div class="hi-meta">' + e.ts + ' \u00b7 ' + e.price + ' \u00b7 ' + r.confidence + '%</div>' +
+      '<div class="hi-headline">' + r.headline + '</div>' +
+      '<div class="hi-meta">SL:' + r.sl + ' \u00b7 TP1:' + r.tp1 + ' \u00b7 ' + r.rr + '</div>' +
+      '<div class="hi-tags">' + qs + taTag + confHtml + '</div>' +
+    '</div>';
+  });
+  listEl.innerHTML = html;
+}
+
+function filterHist(el, pair) {
+  histFilter = pair;
+  document.querySelectorAll('.hpt').forEach(function(x) { x.classList.remove('on'); });
+  el.classList.add('on'); renderHistory();
+}
+
+function loadEntry(id) {
+  var e = loadAll().find(function(x) { return x.id === id; });
+  if (!e) return;
+  document.querySelectorAll('.hist-item').forEach(function(x) { x.classList.remove('loaded'); });
+  var el = document.getElementById('hi-' + id); if (el) el.classList.add('loaded');
+  var found = false;
+  document.querySelectorAll('.pp').forEach(function(btn) {
+    btn.classList.remove('on');
+    if (btn.textContent.replace('/', '') === e.pair || btn.textContent === e.pair) { btn.classList.add('on'); found = true; }
+  });
+  if (!found) document.getElementById('customPair').value = e.pair;
+  selPair = e.pair; selTVSymbol = 'FX:' + e.pair;
+  document.querySelectorAll('.tf').forEach(function(x) { x.classList.remove('on'); if (x.textContent === e.tf) x.classList.add('on'); });
+  selTF = e.tf;
+  document.getElementById('price').value = e.price;
+  document.getElementById('snap').value = e.snap || '';
+  (e.qs || []).forEach(function(q, i) { document.getElementById('q' + (i+1)).value = q || ''; });
+  document.getElementById('mfbL').value = e.mfbL !== 'brak' ? e.mfbL : '';
+  document.getElementById('mfbS').value = e.mfbS !== 'brak' ? e.mfbS : '';
+  document.getElementById('notes').value = e.notes !== 'brak' ? e.notes : '';
+  refreshLive();
+  document.getElementById('chartLabel').textContent = e.pair + ' \u00b7 ' + e.tf;
+  buildChart(selTVSymbol, selTVInterval);
+  taFromImage = e.ta || null;
+  if (taFromImage) { renderImageTA(taFromImage); document.getElementById('taResultPanel').style.display = 'block'; }
+  else document.getElementById('taResultPanel').style.display = 'none';
+  var r = e.result;
+  ctx = JSON.stringify({ data: e, taFromImage: taFromImage, result: r });
+  chatHist = [
+    { role: 'user', content: 'Dane historyczne: ' + JSON.stringify(e) },
+    { role: 'assistant', content: 'Za\u0142adowano ' + e.pair + ' ' + e.tf + ' z ' + e.ts + '. ' + r.direction + ' (' + r.confidence + '%). Pytaj!' }
+  ];
+  document.getElementById('chatMsgs').innerHTML = '<div class="msg a"><div class="msg-r">AGENT AI</div>Za\u0142adowano analiz\u0119 z ' + e.ts + '.</div>';
+  renderResult(r);
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('cin').disabled = false;
+  document.getElementById('csnd').disabled = false;
+}
+
+function delEntry(id) { if (!confirm('Usun\u0105\u0107?')) return; saveAll(loadAll().filter(function(x) { return x.id !== id; })); renderHistory(); }
+function clearAll() { if (!confirm('Usun\u0105\u0107 CA\u0141\u0104 histori\u0119?')) return; localStorage.removeItem(STORAGE_KEY); histFilter = 'ALL'; renderHistory(); }
+function exportJSON() {
+  var arr = loadAll(); if (!arr.length) { alert('Brak analiz.'); return; }
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(arr, null, 2)], { type: 'application/json' }));
+  a.download = 'fxssi_' + new Date().toISOString().slice(0,10) + '.json'; a.click();
+}
+function exportCSV() {
+  var arr = loadAll(); if (!arr.length) { alert('Brak analiz.'); return; }
+  var hdr = 'id,ts,pair,tf,price,Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,direction,confidence,entry,sl,tp1,tp2,rr,confluence';
+  var rows = arr.map(function(e) {
+    var r = e.result; var q = e.qs || [];
+    return [e.id, e.ts, e.pair, e.tf, e.price].concat(q).concat([r.direction, r.confidence, '"'+r.entry+'"', '"'+r.sl+'"', '"'+r.tp1+'"', '"'+r.tp2+'"', r.rr, r.confluence||'']).join(',');
+  });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([[hdr].concat(rows).join('\n')], { type: 'text/csv' }));
+  a.download = 'fxssi_' + new Date().toISOString().slice(0,10) + '.csv'; a.click();
+}
+
+// ── Chat ──
+async function sendChat() {
+  var inp = document.getElementById('cin');
+  var msg = inp.value.trim(); if (!msg || busy) return;
+  inp.value = ''; document.getElementById('csnd').disabled = true;
+  var msgs = document.getElementById('chatMsgs');
+  msgs.innerHTML += '<div class="msg u"><div class="msg-r">TY</div>' + msg + '</div>';
+  var ld = document.createElement('div'); ld.className = 'msg a';
+  ld.innerHTML = '<div class="msg-r">AGENT AI</div><div class="spin spin-dark" style="width:12px;height:12px"></div>';
+  msgs.appendChild(ld); msgs.scrollTop = msgs.scrollHeight;
+  chatHist.push({ role: 'user', content: msg });
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        system: 'Ekspert FXSSI 8 cwiartek OB+PB + Vision AI. Odpowiadaj po polsku konkretnie. Kontekst: ' + ctx + '. Nie udzielaj porad inwestycyjnych.',
+        messages: chatHist
+      })
+    });
+    var data = await resp.json();
+    var reply = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+    chatHist.push({ role: 'assistant', content: reply });
+    ld.innerHTML = '<div class="msg-r">AGENT AI</div>' + reply.replace(/\n/g, '<br>');
+  } catch(e) { ld.innerHTML = '<div class="msg-r">B\u0141\u0104D</div>Nie uda\u0142o si\u0119.'; }
+  document.getElementById('csnd').disabled = false; msgs.scrollTop = msgs.scrollHeight;
+}
+document.getElementById('cin').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendChat(); });
+
+function rt(el, n) {
+  document.querySelectorAll('.rtab').forEach(function(t) { t.classList.remove('on'); });
+  document.querySelectorAll('.rbody').forEach(function(t) { t.classList.remove('on'); });
+  el.classList.add('on'); document.getElementById('rb-' + n).classList.add('on');
+}
+
+// INIT
+buildChart('FX:EURUSD', '60');
+renderHistory();
+</script>
+</body>
+</html>
