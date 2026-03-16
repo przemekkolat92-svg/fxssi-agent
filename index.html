@@ -500,6 +500,131 @@ textarea::placeholder{color:var(--muted)}
 
 <script>
 
+
+// ═══ SUPABASE CONFIG ═══
+var SB_URL = 'https://itpyuzzlkwwzewgoghcu.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cHl1enpsa3d3emV3Z29naGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzE5MzksImV4cCI6MjA4OTI0NzkzOX0.VHmJ5rruoy99gaTBF08i6qtpeYX9CQ-iTdrNzKY26XI';
+
+function sbHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    'Prefer': 'return=representation'
+  };
+}
+
+// Zapisz analizę do Supabase
+async function sbSave(entry) {
+  try {
+    var resp = await fetch(SB_URL + '/rest/v1/analyses', {
+      method: 'POST',
+      headers: sbHeaders(),
+      body: JSON.stringify({
+        ts: entry.ts,
+        pair: entry.pair,
+        tf: entry.tf,
+        price: entry.price,
+        snap: entry.snap || '',
+        qs: entry.qs,
+        mfb_l: entry.mfbL || '',
+        mfb_s: entry.mfbS || '',
+        notes: entry.notes || '',
+        ta: entry.ta || null,
+        result: entry.result
+      })
+    });
+    var data = await resp.json();
+    if (data && data[0] && data[0].id) {
+      // Zapisz też lokalnie z id z Supabase
+      entry.sb_id = data[0].id;
+      var arr = loadAll();
+      // Znajdź i zaktualizuj lokalny wpis
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].id === entry.id) { arr[i].sb_id = data[0].id; break; }
+      }
+      saveAll(arr);
+      showSyncStatus('\u2601\ufe0f zsynchronizowano');
+    }
+  } catch(e) {
+    showSyncStatus('\u26a0\ufe0f tylko lokalnie');
+  }
+}
+
+// Pobierz wszystkie analizy z Supabase
+async function sbLoadAll() {
+  try {
+    var resp = await fetch(SB_URL + '/rest/v1/analyses?order=created_at.desc&limit=500', {
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY
+      }
+    });
+    var rows = await resp.json();
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    // Przelicz na format lokalny
+    return rows.map(function(r) {
+      return {
+        id: r.id,
+        sb_id: r.id,
+        ts: r.ts,
+        pair: r.pair,
+        tf: r.tf,
+        price: r.price,
+        snap: r.snap,
+        qs: r.qs,
+        mfbL: r.mfb_l,
+        mfbS: r.mfb_s,
+        notes: r.notes,
+        ta: r.ta,
+        result: r.result
+      };
+    });
+  } catch(e) {
+    return null;
+  }
+}
+
+// Usuń z Supabase
+async function sbDelete(sb_id) {
+  if (!sb_id) return;
+  try {
+    await fetch(SB_URL + '/rest/v1/analyses?id=eq.' + sb_id, {
+      method: 'DELETE',
+      headers: sbHeaders()
+    });
+  } catch(e) {}
+}
+
+// Status sync
+function showSyncStatus(msg) {
+  var el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.opacity = '1';
+  setTimeout(function() { el.style.opacity = '0'; }, 3000);
+}
+
+// Sync przy starcie — pobierz z Supabase i scal z lokalną historią
+async function syncFromCloud() {
+  var el = document.getElementById('syncStatus');
+  if (el) { el.textContent = '\u2601\ufe0f synchronizuję...'; el.style.opacity = '1'; }
+  var cloudData = await sbLoadAll();
+  if (cloudData && cloudData.length > 0) {
+    // Scal: cloud ma pierwszeństwo, dodaj lokalnie to czego nie ma w chmurze
+    var local = loadAll();
+    var cloudIds = cloudData.map(function(r) { return r.sb_id; });
+    var localOnly = local.filter(function(r) { return !r.sb_id; });
+    // Połącz: cloud + to co tylko lokalnie
+    var merged = cloudData.concat(localOnly);
+    saveAll(merged);
+    renderHistory();
+    if (el) { el.textContent = '\u2705 zsynchronizowano (' + cloudData.length + ')'; setTimeout(function(){ el.style.opacity='0'; }, 3000); }
+  } else {
+    if (el) { el.textContent = '\u2601\ufe0f brak danych w chmurze'; setTimeout(function(){ el.style.opacity='0'; }, 3000); }
+  }
+}
+
 // ── API KEY ──
 function saveKey(val) {
   val = val.trim();
@@ -847,7 +972,7 @@ function saveAll(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); 
 
 function saveEntry(data, result) {
   var arr = loadAll();
-  arr.unshift({
+  var entry = {
     id: Date.now(), ts: new Date().toLocaleString('pl-PL'),
     pair: data.pair, tf: data.tf, price: data.price, snap: data.snap,
     qs: [data.q1, data.q2, data.q3, data.q4, data.q5, data.q6, data.q7, data.q8],
@@ -861,9 +986,11 @@ function saveEntry(data, result) {
       confluence_explanation: result.confluence_explanation,
       key_combo: result.key_combo, narrative: result.narrative, key_risk: result.key_risk
     }
-  });
+  };
+  arr.unshift(entry);
   if (arr.length > 500) arr.splice(500);
   saveAll(arr); renderHistory();
+  sbSave(entry);
 }
 
 function getDirColor(d) { return d === 'LONG' ? '#10b981' : d === 'SHORT' ? '#ef4444' : '#f59e0b'; }
@@ -957,7 +1084,14 @@ function loadEntry(id) {
   document.getElementById('csnd').disabled = false;
 }
 
-function delEntry(id) { if (!confirm('Usun\u0105\u0107?')) return; saveAll(loadAll().filter(function(x) { return x.id !== id; })); renderHistory(); }
+function delEntry(id) {
+  if (!confirm('Usun\u0105\u0107?')) return;
+  var arr = loadAll();
+  var entry = arr.find(function(x) { return x.id === id; });
+  if (entry && entry.sb_id) sbDelete(entry.sb_id);
+  saveAll(arr.filter(function(x) { return x.id !== id; }));
+  renderHistory();
+}
 function clearAll() { if (!confirm('Usun\u0105\u0107 CA\u0141\u0104 histori\u0119?')) return; localStorage.removeItem(STORAGE_KEY); histFilter = 'ALL'; renderHistory(); }
 function exportJSON() {
   var arr = loadAll(); if (!arr.length) { alert('Brak analiz.'); return; }
@@ -1089,6 +1223,8 @@ if (_savedKey) {
 }
 buildChart('FX:EURUSD', '60');
 renderHistory();
+// Sync z chmury przy starcie
+setTimeout(syncFromCloud, 1000);
 </script>
 </body>
 </html>
