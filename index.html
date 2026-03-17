@@ -349,7 +349,10 @@ textarea::placeholder{color:var(--muted)}
         <div class="panel-hdr">
           <span>📊</span>
           <span class="panel-hdr-t">Screenshot wykresu (H1/H4)</span>
-          <span class="panel-hdr-badge" id="badgeChart">brak</span>
+          <span class="panel-hdr-badge" id="badgeChart" style="margin-left:auto">brak</span>
+          <input type="file" accept="image/*" id="fileChart2" style="display:none" onchange="handleImg('chart',this.files[0])">
+          <button onclick="document.getElementById('fileChart2').click()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Outfit,sans-serif;margin-left:6px;white-space:nowrap">📁 Wgraj</button>
+          <button onclick="pasteFromClipboard('chart')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Outfit,sans-serif;margin-left:4px;white-space:nowrap">📋 Schowek</button>
         </div>
         <div class="drop-zone" id="dzChart">
           <input type="file" accept="image/*" onchange="handleImg('chart',this.files[0])">
@@ -373,7 +376,10 @@ textarea::placeholder{color:var(--muted)}
         <div class="panel-hdr">
           <span>📖</span>
           <span class="panel-hdr-t">Screenshot Order Book → auto odczyt Q1–Q4</span>
-          <span class="panel-hdr-badge" id="badgeOB">brak</span>
+          <span class="panel-hdr-badge" id="badgeOB" style="margin-left:auto">brak</span>
+          <input type="file" accept="image/*" id="fileOB2" style="display:none" onchange="handleImg('ob',this.files[0])">
+          <button onclick="document.getElementById('fileOB2').click()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Outfit,sans-serif;margin-left:6px;white-space:nowrap">📁 Wgraj</button>
+          <button onclick="pasteFromClipboard('ob')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Outfit,sans-serif;margin-left:4px;white-space:nowrap">📋 Schowek</button>
         </div>
         <div class="drop-zone" id="dzOB">
           <input type="file" accept="image/*" onchange="handleImg('ob',this.files[0])">
@@ -397,7 +403,10 @@ textarea::placeholder{color:var(--muted)}
         <div class="panel-hdr">
           <span>📍</span>
           <span class="panel-hdr-t">Screenshot Position Book → auto odczyt Q5–Q8 + CR</span>
-          <span class="panel-hdr-badge" id="badgePB">brak</span>
+          <span class="panel-hdr-badge" id="badgePB" style="margin-left:auto">brak</span>
+          <input type="file" accept="image/*" id="filePB2" style="display:none" onchange="handleImg('pb',this.files[0])">
+          <button onclick="document.getElementById('filePB2').click()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Outfit,sans-serif;margin-left:6px;white-space:nowrap">📁 Wgraj</button>
+          <button onclick="pasteFromClipboard('pb')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Outfit,sans-serif;margin-left:4px;white-space:nowrap">📋 Schowek</button>
         </div>
         <div class="drop-zone" id="dzPB">
           <input type="file" accept="image/*" onchange="handleImg('pb',this.files[0])">
@@ -691,6 +700,31 @@ function handleImg(type, file) {
 }
 function cap(s) { return s === 'ob' ? 'OB' : s === 'pb' ? 'PB' : 'Chart'; }
 
+
+// Paste ze schowka przez przycisk
+async function pasteFromClipboard(type) {
+  try {
+    var items = await navigator.clipboard.read();
+    for (var i = 0; i < items.length; i++) {
+      for (var j = 0; j < items[i].types.length; j++) {
+        if (items[i].types[j].indexOf('image') === 0) {
+          var blob = await items[i].getType(items[i].types[j]);
+          handleImg(type, new File([blob], 'paste.png', {type: blob.type}));
+          return;
+        }
+      }
+    }
+    alert('Brak obrazu w schowku. Najpierw zrób screenshot (Win+Shift+S), potem kliknij Schowek.');
+  } catch(e) {
+    // Fallback - poproś o paste
+    var msg = 'Kliknij OK, najedź na strefę upload i naciśnij Ctrl+V';
+    if (e.name === 'NotAllowedError') {
+      msg = 'Przeglądarka blokuje dostęp do schowka. Użyj przycisku Wgraj lub przeciągnij plik.';
+    }
+    alert(msg);
+  }
+}
+
 // Paste per drop-zone - każda strefa nasłuchuje osobno
 function setupPasteForZone(dzId, type) {
   var dz = document.getElementById(dzId);
@@ -706,6 +740,29 @@ function setupPasteForZone(dzId, type) {
 setupPasteForZone('dzChart', 'chart');
 setupPasteForZone('dzOB', 'ob');
 setupPasteForZone('dzPB', 'pb');
+
+// Hover na cały panel (nie tylko drop-zone) - działa też gdy podgląd jest widoczny
+['panelChart','previewChart','imgChart','btnAnalyzeChart','resultChart'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('mouseenter', function() { document.getElementById('dzChart')._active = true; });
+    el.addEventListener('mouseleave', function() { document.getElementById('dzChart')._active = false; });
+  }
+});
+['panelOB','previewOB','imgOB','btnAnalyzeOB','resultOB'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('mouseenter', function() { document.getElementById('dzOB')._active = true; });
+    el.addEventListener('mouseleave', function() { document.getElementById('dzOB')._active = false; });
+  }
+});
+['panelPB','previewPB','imgPB','btnAnalyzePB','resultPB'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('mouseenter', function() { document.getElementById('dzPB')._active = true; });
+    el.addEventListener('mouseleave', function() { document.getElementById('dzPB')._active = false; });
+  }
+});
 
 function clearImg(type) {
   imgs[type] = null;
