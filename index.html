@@ -689,7 +689,7 @@ function handleImg(type, file) {
   };
   reader.readAsDataURL(file);
 }
-function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function cap(s) { return s === 'ob' ? 'OB' : s === 'pb' ? 'PB' : 'Chart'; }
 
 function clearImg(type) {
   imgs[type] = null;
