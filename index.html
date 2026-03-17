@@ -351,8 +351,8 @@ textarea::placeholder{color:var(--muted)}
           <span class="panel-hdr-t">Screenshot wykresu (H1/H4)</span>
           <span class="panel-hdr-badge" id="badgeChart">brak</span>
         </div>
-        <input type="file" accept="image/*" id="fileChart" style="display:none" onchange="handleImg('chart',this.files[0])">
-        <div class="drop-zone" id="dzChart" onclick="document.getElementById('fileChart').click()">
+        <div class="drop-zone" id="dzChart">
+          <input type="file" accept="image/*" onchange="handleImg('chart',this.files[0])">
           <div class="drop-icon">📷</div>
           <div class="drop-label">Wrzuć screenshot wykresu</div>
           <div class="drop-sub">Trend · RSI · MACD · Formacje</div>
@@ -375,8 +375,8 @@ textarea::placeholder{color:var(--muted)}
           <span class="panel-hdr-t">Screenshot Order Book → auto odczyt Q1–Q4</span>
           <span class="panel-hdr-badge" id="badgeOB">brak</span>
         </div>
-        <input type="file" accept="image/*" id="fileOB" style="display:none" onchange="handleImg('ob',this.files[0])">
-        <div class="drop-zone" id="dzOB" onclick="document.getElementById('fileOB').click()">
+        <div class="drop-zone" id="dzOB">
+          <input type="file" accept="image/*" onchange="handleImg('ob',this.files[0])">
           <div class="drop-icon">📋</div>
           <div class="drop-label">Wrzuć screenshot Order Book</div>
           <div class="drop-sub">Agent odczyta Q1 Q2 Q3 Q4 automatycznie</div>
@@ -399,8 +399,8 @@ textarea::placeholder{color:var(--muted)}
           <span class="panel-hdr-t">Screenshot Position Book → auto odczyt Q5–Q8 + CR</span>
           <span class="panel-hdr-badge" id="badgePB">brak</span>
         </div>
-        <input type="file" accept="image/*" id="filePB" style="display:none" onchange="handleImg('pb',this.files[0])">
-        <div class="drop-zone" id="dzPB" onclick="document.getElementById('filePB').click()">
+        <div class="drop-zone" id="dzPB">
+          <input type="file" accept="image/*" onchange="handleImg('pb',this.files[0])">
           <div class="drop-icon">📋</div>
           <div class="drop-label">Wrzuć screenshot Position Book</div>
           <div class="drop-sub">Agent odczyta Q5 Q6 Q7 Q8 + Long/Short % automatycznie</div>
@@ -704,20 +704,6 @@ function clearImg(type) {
 
 // Hover + Ctrl+V dla wszystkich 3 stref
 var lastActivePanel = 'chart';
-var mouseX = 0, mouseY = 0;
-document.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; });
-
-function getPanelUnderMouse() {
-  var el = document.elementFromPoint(mouseX, mouseY);
-  while (el) {
-    if (el.id === 'panelChart' || el.closest && el.closest('#panelChart')) return 'chart';
-    if (el.id === 'panelOB' || el.closest && el.closest('#panelOB')) return 'ob';
-    if (el.id === 'panelPB' || el.closest && el.closest('#panelPB')) return 'pb';
-    el = el.parentElement;
-  }
-  return lastActivePanel;
-}
-
 document.querySelectorAll('.drop-zone').forEach(function(dz) {
   dz.addEventListener('mouseenter', function() {
     if (dz.id === 'dzChart') lastActivePanel = 'chart';
@@ -747,37 +733,13 @@ document.querySelectorAll('.drop-zone').forEach(function(dz) {
   });
 });
 
-// Globalny Ctrl+V - dziala zawsze, bez potrzeby focusu na elemencie
-document.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-    // Sprawdz gdzie jest kursor myszy
-    var panel = getPanelUnderMouse();
-    // Czytaj schowek przez Clipboard API
-    if (navigator.clipboard && navigator.clipboard.read) {
-      navigator.clipboard.read().then(function(items) {
-        for (var i=0;i<items.length;i++) {
-          for (var j=0;j<items[i].types.length;j++) {
-            if (items[i].types[j].indexOf('image')===0) {
-              items[i].getType(items[i].types[j]).then(function(blob) {
-                handleImg(panel, new File([blob], 'paste.png', {type:blob.type}));
-              });
-              return;
-            }
-          }
-        }
-      }).catch(function(){});
-    }
-  }
-});
-
-// Fallback - standardowy paste event
+// Paste event - prosty i niezawodny
 document.addEventListener('paste', function(e) {
   var items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
-  var panel = getPanelUnderMouse();
   for (var i=0;i<items.length;i++) {
     if (items[i].type.indexOf('image')===0) {
-      handleImg(panel, items[i].getAsFile());
+      handleImg(lastActivePanel, items[i].getAsFile());
       break;
     }
   }
