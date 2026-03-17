@@ -893,7 +893,11 @@ async function analyzeOB() {
     if (data.error) throw new Error(data.error.message);
     var txt = data.content.filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
     var m = txt.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('Brak JSON');
+    if (!m) {
+      // Pokaż co Claude faktycznie odpowiedział
+      document.getElementById('rb-ov').innerHTML = '<div style="padding:14px;color:#f87171;font-size:11px"><strong>Brak JSON — odpowiedź Claude:</strong><br><pre style="white-space:pre-wrap;font-size:10px;margin-top:8px;color:var(--muted)">' + txt.slice(0,1000) + '</pre></div>';
+      throw new Error('stop');
+    }
     var r = JSON.parse(m[0]);
     // Wpisz do pól
     if (r.q1 !== null && r.q1 !== undefined) { document.getElementById('q1').value = r.q1; }
