@@ -702,13 +702,30 @@ function clearImg(type) {
   if (type === 'chart') taChart = null;
 }
 
-// Ctrl+V paste — wrzuca do ostatnio aktywnego panelu
+// Ctrl+V paste — najedz kursorem na strefe -> podswietla sie -> Ctrl+V wkleja
 var lastActivePanel = 'chart';
 document.querySelectorAll('.drop-zone').forEach(function(dz) {
   dz.addEventListener('mouseenter', function() {
     if (dz.id === 'dzChart') lastActivePanel = 'chart';
     else if (dz.id === 'dzOB') lastActivePanel = 'ob';
     else if (dz.id === 'dzPB') lastActivePanel = 'pb';
+    // Podswietl aktywna strefe
+    document.querySelectorAll('.drop-zone').forEach(function(x) {
+      x.style.borderColor = '';
+      x.style.background = '';
+      var h = x.querySelector('.drop-hint');
+      if (h) { h.textContent = 'Przeciągnij · Kliknij · Ctrl+V'; h.style.color = ''; }
+    });
+    dz.style.borderColor = 'var(--accent)';
+    dz.style.background = 'rgba(14,165,233,.06)';
+    var hint = dz.querySelector('.drop-hint');
+    if (hint) { hint.textContent = '← Ctrl+V aby wkleić tutaj'; hint.style.color = 'var(--accent)'; hint.style.fontWeight = '700'; }
+  });
+  dz.addEventListener('mouseleave', function() {
+    dz.style.borderColor = '';
+    dz.style.background = '';
+    var hint = dz.querySelector('.drop-hint');
+    if (hint) { hint.textContent = 'Przeciągnij · Kliknij · Ctrl+V'; hint.style.color = ''; hint.style.fontWeight = ''; }
   });
   dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('over'); });
   dz.addEventListener('dragleave', function() { dz.classList.remove('over'); });
