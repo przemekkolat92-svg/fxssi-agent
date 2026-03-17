@@ -1134,7 +1134,7 @@ async function analyze() {
   msgContent.push({type:'text',text:prompt});
 
   try {
-    var resp = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:apiHeaders(), body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:msgContent}] }) });
+    var resp = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:apiHeaders(), body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, messages:[{role:'user',content:msgContent}] }) });
     var data = await resp.json();
     if (data.error) throw new Error(data.error.message);
     var txt = data.content.filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
