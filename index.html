@@ -351,8 +351,8 @@ textarea::placeholder{color:var(--muted)}
           <span class="panel-hdr-t">Screenshot wykresu (H1/H4)</span>
           <span class="panel-hdr-badge" id="badgeChart">brak</span>
         </div>
-        <div class="drop-zone" id="dzChart">
-          <input type="file" accept="image/*" onchange="handleImg('chart',this.files[0])">
+        <input type="file" accept="image/*" id="fileChart" style="display:none" onchange="handleImg('chart',this.files[0])">
+        <div class="drop-zone" id="dzChart" onclick="document.getElementById('fileChart').click()">
           <div class="drop-icon">📷</div>
           <div class="drop-label">Wrzuć screenshot wykresu</div>
           <div class="drop-sub">Trend · RSI · MACD · Formacje</div>
@@ -702,19 +702,31 @@ function clearImg(type) {
   if (type === 'chart') taChart = null;
 }
 
-// Ctrl+V paste — najedz kursorem na strefe -> podswietla sie -> Ctrl+V wkleja
+// Hover + Ctrl+V dla wszystkich 3 stref
 var lastActivePanel = 'chart';
+var mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; });
+
+function getPanelUnderMouse() {
+  var el = document.elementFromPoint(mouseX, mouseY);
+  while (el) {
+    if (el.id === 'panelChart' || el.closest && el.closest('#panelChart')) return 'chart';
+    if (el.id === 'panelOB' || el.closest && el.closest('#panelOB')) return 'ob';
+    if (el.id === 'panelPB' || el.closest && el.closest('#panelPB')) return 'pb';
+    el = el.parentElement;
+  }
+  return lastActivePanel;
+}
+
 document.querySelectorAll('.drop-zone').forEach(function(dz) {
   dz.addEventListener('mouseenter', function() {
     if (dz.id === 'dzChart') lastActivePanel = 'chart';
     else if (dz.id === 'dzOB') lastActivePanel = 'ob';
     else if (dz.id === 'dzPB') lastActivePanel = 'pb';
-    // Podswietl aktywna strefe
     document.querySelectorAll('.drop-zone').forEach(function(x) {
-      x.style.borderColor = '';
-      x.style.background = '';
+      x.style.borderColor = ''; x.style.background = '';
       var h = x.querySelector('.drop-hint');
-      if (h) { h.textContent = 'Przeciągnij · Kliknij · Ctrl+V'; h.style.color = ''; }
+      if (h) { h.textContent = 'Przeciągnij · Kliknij · Ctrl+V'; h.style.color = ''; h.style.fontWeight = ''; }
     });
     dz.style.borderColor = 'var(--accent)';
     dz.style.background = 'rgba(14,165,233,.06)';
@@ -722,8 +734,7 @@ document.querySelectorAll('.drop-zone').forEach(function(dz) {
     if (hint) { hint.textContent = '← Ctrl+V aby wkleić tutaj'; hint.style.color = 'var(--accent)'; hint.style.fontWeight = '700'; }
   });
   dz.addEventListener('mouseleave', function() {
-    dz.style.borderColor = '';
-    dz.style.background = '';
+    dz.style.borderColor = ''; dz.style.background = '';
     var hint = dz.querySelector('.drop-hint');
     if (hint) { hint.textContent = 'Przeciągnij · Kliknij · Ctrl+V'; hint.style.color = ''; hint.style.fontWeight = ''; }
   });
@@ -735,10 +746,41 @@ document.querySelectorAll('.drop-zone').forEach(function(dz) {
     if (e.dataTransfer.files[0]) handleImg(type, e.dataTransfer.files[0]);
   });
 });
+
+// Globalny Ctrl+V - dziala zawsze, bez potrzeby focusu na elemencie
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+    // Sprawdz gdzie jest kursor myszy
+    var panel = getPanelUnderMouse();
+    // Czytaj schowek przez Clipboard API
+    if (navigator.clipboard && navigator.clipboard.read) {
+      navigator.clipboard.read().then(function(items) {
+        for (var i=0;i<items.length;i++) {
+          for (var j=0;j<items[i].types.length;j++) {
+            if (items[i].types[j].indexOf('image')===0) {
+              items[i].getType(items[i].types[j]).then(function(blob) {
+                handleImg(panel, new File([blob], 'paste.png', {type:blob.type}));
+              });
+              return;
+            }
+          }
+        }
+      }).catch(function(){});
+    }
+  }
+});
+
+// Fallback - standardowy paste event
 document.addEventListener('paste', function(e) {
   var items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
-  for (var i=0;i<items.length;i++) { if(items[i].type.indexOf('image')===0){ handleImg(lastActivePanel, items[i].getAsFile()); break; } }
+  var panel = getPanelUnderMouse();
+  for (var i=0;i<items.length;i++) {
+    if (items[i].type.indexOf('image')===0) {
+      handleImg(panel, items[i].getAsFile());
+      break;
+    }
+  }
 });
 
 // ═══════════════════════════════
