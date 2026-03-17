@@ -691,6 +691,22 @@ function handleImg(type, file) {
 }
 function cap(s) { return s === 'ob' ? 'OB' : s === 'pb' ? 'PB' : 'Chart'; }
 
+// Paste per drop-zone - każda strefa nasłuchuje osobno
+function setupPasteForZone(dzId, type) {
+  var dz = document.getElementById(dzId);
+  if (!dz) return;
+  // Paste na całym dokumencie gdy kursor jest nad tą strefą
+  dz.addEventListener('mouseenter', function() {
+    dz._active = true;
+  });
+  dz.addEventListener('mouseleave', function() {
+    dz._active = false;
+  });
+}
+setupPasteForZone('dzChart', 'chart');
+setupPasteForZone('dzOB', 'ob');
+setupPasteForZone('dzPB', 'pb');
+
 function clearImg(type) {
   imgs[type] = null;
   document.getElementById('img'+cap(type)).src = '';
@@ -704,6 +720,10 @@ function clearImg(type) {
 
 // Hover + Ctrl+V dla wszystkich 3 stref
 var lastActivePanel = 'chart';
+// Śledź pozycję myszy - ustaw panel gdy kursor wchodzi w obszar panelu
+document.getElementById('panelOB').addEventListener('mouseenter', function(){ lastActivePanel='ob'; });
+document.getElementById('panelPB').addEventListener('mouseenter', function(){ lastActivePanel='pb'; });
+document.getElementById('panelChart').addEventListener('mouseenter', function(){ lastActivePanel='chart'; });
 document.querySelectorAll('.drop-zone').forEach(function(dz) {
   dz.addEventListener('mouseenter', function() {
     if (dz.id === 'dzChart') lastActivePanel = 'chart';
@@ -733,13 +753,18 @@ document.querySelectorAll('.drop-zone').forEach(function(dz) {
   });
 });
 
-// Paste event - prosty i niezawodny
+// Paste - sprawdza która strefa ma _active=true (kursor nad nią)
 document.addEventListener('paste', function(e) {
   var items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
+  var type = 'chart';
+  if (document.getElementById('dzOB') && document.getElementById('dzOB')._active) type = 'ob';
+  else if (document.getElementById('dzPB') && document.getElementById('dzPB')._active) type = 'pb';
+  else if (document.getElementById('dzChart') && document.getElementById('dzChart')._active) type = 'chart';
+  else type = lastActivePanel;
   for (var i=0;i<items.length;i++) {
     if (items[i].type.indexOf('image')===0) {
-      handleImg(lastActivePanel, items[i].getAsFile());
+      handleImg(type, items[i].getAsFile());
       break;
     }
   }
